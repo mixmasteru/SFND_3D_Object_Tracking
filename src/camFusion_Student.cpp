@@ -121,7 +121,8 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
     // display image
     string windowName = "3D Objects";
-    cv::namedWindow(windowName, 1);
+    cv::namedWindow(windowName, 2);
+    cv::resizeWindow(windowName, 600, 1000);
     cv::imshow(windowName, topviewImg);
 
     if (bWait) {
@@ -232,7 +233,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // find closest distance to Lidar points within ego lane
     double minXPrev = 1e9, minXCurr = 1e9;
     for (auto &it : lidarPointsPrev) {
-
         if (abs(it.y) <= laneWidth / 2.0) { // 3D point within ego lane?
             minXPrev = minXPrev > it.x ? it.x : minXPrev;
         }

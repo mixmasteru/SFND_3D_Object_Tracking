@@ -20,10 +20,10 @@
 
 using namespace std;
 
-/* MAIN PROGRAM */
-int main(int argc, const char *argv[]) {
-    /* INIT VARIABLES AND DATA STRUCTURES */
 
+void run(const string& detectorType, const string& descriptorType) {
+    /* INIT VARIABLES AND DATA STRUCTURES */
+    cout <<"OUT " << detectorType << "," << descriptorType << endl;
     // data location
     string dataPath = "../";
 
@@ -103,6 +103,7 @@ int main(int argc, const char *argv[]) {
     int dataBufferSize = 2;       // no. of images which are held in memory (ring buffer) at the same time
     vector<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
     bool bVis = false;            // visualize results
+    bool info = true;
 
     /* MAIN LOOP OVER ALL IMAGES */
 
@@ -122,7 +123,7 @@ int main(int argc, const char *argv[]) {
         frame.cameraImg = img;
         dataBuffer.push_back(frame);
 
-        cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
+        if (info) cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
 
 
         /* DETECT & CLASSIFY OBJECTS */
@@ -133,7 +134,7 @@ int main(int argc, const char *argv[]) {
                       nmsThreshold,
                       yoloBasePath, yoloClassesFile, yoloModelConfiguration, yoloModelWeights, bVis);
 
-        cout << "#2 : DETECT & CLASSIFY OBJECTS done" << endl;
+        if (info) cout << "#2 : DETECT & CLASSIFY OBJECTS done" << endl;
 
 
         /* CROP LIDAR POINTS */
@@ -149,7 +150,7 @@ int main(int argc, const char *argv[]) {
 
         (dataBuffer.end() - 1)->lidarPoints = lidarPoints;
 
-        cout << "#3 : CROP LIDAR POINTS done" << endl;
+        if (info) cout << "#3 : CROP LIDAR POINTS done" << endl;
 
 
         /* CLUSTER LIDAR POINT CLOUD */
@@ -160,13 +161,11 @@ int main(int argc, const char *argv[]) {
                             P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
         if (bVis) {
             show3DObjects((dataBuffer.end() - 1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
         }
-        bVis = false;
 
-        cout << "#4 : CLUSTER LIDAR POINT CLOUD done" << endl;
+        if (info) cout << "#4 : CLUSTER LIDAR POINT CLOUD done" << endl;
 
 
         // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
@@ -180,7 +179,6 @@ int main(int argc, const char *argv[]) {
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
 
         if (detectorType == "SHITOMASI") {
             detKeypointsShiTomasi(keypoints, imgGray, false);
@@ -206,20 +204,21 @@ int main(int argc, const char *argv[]) {
         // push keypoints and descriptor for current frame to end of data buffer
         (dataBuffer.end() - 1)->keypoints = keypoints;
 
-        cout << "#5 : DETECT KEYPOINTS done" << endl;
+        if (info) cout << "#5 : DETECT KEYPOINTS done" << endl;
 
 
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
-        descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors,
+        descKeypoints((dataBuffer.end() - 1)->keypoints,
+                      (dataBuffer.end() - 1)->cameraImg,
+                      descriptors,
                       descriptorType);
 
         // push descriptors for current frame to end of data buffer
         (dataBuffer.end() - 1)->descriptors = descriptors;
 
-        cout << "#6 : EXTRACT DESCRIPTORS done" << endl;
+        if (info) cout << "#6 : EXTRACT DESCRIPTORS done" << endl;
 
 
         if (dataBuffer.size() > 1) // wait until at least two images have been processed
@@ -239,7 +238,7 @@ int main(int argc, const char *argv[]) {
             // store matches in current data frame
             (dataBuffer.end() - 1)->kptMatches = matches;
 
-            cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << endl;
+            if (info) cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << endl;
 
 
             /* TRACK 3D OBJECT BOUNDING BOXES */
@@ -256,7 +255,7 @@ int main(int argc, const char *argv[]) {
             // store matches in current data frame
             (dataBuffer.end() - 1)->bbMatches = bbBestMatches;
 
-            cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << endl;
+            if (info) cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << endl;
 
 
             /* COMPUTE TTC ON OBJECT IN FRONT */
@@ -303,7 +302,7 @@ int main(int argc, const char *argv[]) {
                                      currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+
                     if (bVis) {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
                         showLidarImgOverlay(visImg, currBB->lidarPoints, P_rect_00, R_rect_00, RT, &visImg);
@@ -321,14 +320,34 @@ int main(int argc, const char *argv[]) {
                         cout << "Press key to continue to next frame" << endl;
                         cv::waitKey(0);
                     }
-                    bVis = false;
-
+                    cout <<"OUT " << imgIndex << ","  << ttcLidar << "," << ttcCamera << "," <<  bbBestMatches.size() << endl;
                 } // eof TTC computation
             } // eof loop over all BB matches            
 
         }
 
     } // eof loop over all images
+
+}
+
+
+/* MAIN PROGRAM */
+int main(int argc, const char *argv[]) {
+    string descriptorTypes[6] = {"BRISK", "BRIEF", "ORB", "FREAK", "AKAZE", "SIFT"};
+    string detectorTypes[7] = {"SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"};
+
+    cout << "detectorType" << "," << "descriptorType" << "," << "total_kp" << "," << "total_match" << "," << "total_time" << endl;
+    for (const auto &detectorType: detectorTypes) {
+        for (const auto &descriptorType: descriptorTypes) {
+            try {
+                run(detectorType, descriptorType);
+            }
+            catch (const std::exception &e) {
+                //std::cout << e.what();
+                cout << detectorType << "," << descriptorType << "," << "NA" << "," << "NA" << "," << "NA" << endl;
+            }
+        }
+    }
 
     return 0;
 }
